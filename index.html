@@ -920,7 +920,7 @@
         </div>
     </footer>
 
-    <!-- AI Chatbot -->
+    <!-- AI Sales Chatbot -->
     <div class="chatbot-container">
         <button class="chatbot-toggle" id="chatToggle">
             <i data-lucide="message-circle" id="chatIcon"></i>
@@ -930,13 +930,13 @@
             <div class="chatbot-header">
                 <div class="status-dot"></div>
                 <div>
-                    <div style="font-weight: 700; font-size: 1rem;">LeadFlow Assistant</div>
-                    <div style="font-size: 0.75rem; opacity: 0.8;">Online • Replies instantly</div>
+                    <div style="font-weight: 700; font-size: 1rem;">LeadFlow Sales Agent</div>
+                    <div style="font-size: 0.75rem; opacity: 0.8;">Online • Average reply: 12s</div>
                 </div>
             </div>
             <div class="chatbot-messages" id="chatMessages">
                 <div class="msg msg-ai">
-                    Hi there! I'm your LeadFlow AI assistant. How can I help you scale your business today?
+                    🎯 <strong>Never miss a lead again.</strong> I'm LeadFlow AI — your 24/7 sales agent. I help local service pros capture every lead, qualify them, and book more jobs automatically.
                 </div>
                 <div class="typing" id="typingIndicator">
                     <div class="dot"></div>
@@ -944,12 +944,10 @@
                     <div class="dot"></div>
                 </div>
             </div>
-            <div class="chatbot-replies">
-                <button class="reply-btn" data-msg="How does it work?">💬 How does it work?</button>
-                <button class="reply-btn" data-msg="How much does it cost?">💰 Pricing</button>
-                <button class="reply-btn" data-msg="I want to book a demo.">📅 Book a Demo</button>
-                <button class="reply-btn" data-msg="What services do you offer?">🔧 Services</button>
-                <button class="reply-btn" data-msg="Tell me more.">❓ FAQs</button>
+            <div class="chatbot-replies" id="chatReplies">
+                <button class="reply-btn" data-msg="I want to book more jobs">🎯 Book More Jobs</button>
+                <button class="reply-btn" data-msg="How does it work?">⚙️ How It Works</button>
+                <button class="reply-btn" data-msg="What's the pricing?">💰 Pricing</button>
             </div>
             <div class="chatbot-input">
                 <input type="text" id="chatInput" placeholder="Type your message..." style="flex-grow: 1;">
@@ -976,7 +974,10 @@
 
         revealElements.forEach(el => revealObserver.observe(el));
 
-        // Chatbot Logic
+        // ============================================
+        // AI SALES AGENT - Full Conversation Engine
+        // ============================================
+
         const chatToggle = document.getElementById('chatToggle');
         const chatWindow = document.getElementById('chatWindow');
         const chatIcon = document.getElementById('chatIcon');
@@ -986,100 +987,318 @@
         const sendChat = document.getElementById('sendChat');
         const typingIndicator = document.getElementById('typingIndicator');
         const replyBtns = document.querySelectorAll('.reply-btn');
+        const chatReplies = document.getElementById('chatReplies');
 
-        chatToggle.addEventListener('click', () => {
-            chatWindow.classList.toggle('active');
-            const isActive = chatWindow.classList.contains('active');
-            chatIcon.style.display = isActive ? 'none' : 'block';
-            closeIcon.style.display = isActive ? 'block' : 'none';
-        });
+        let leadData = { name: '', phone: '', email: '', business_type: '', source: 'chatbot' };
+        let conversationState = 'greeting'; // greeting, qualifying, collecting_info, closing, booked
+        let collectedFields = [];
 
-        function addMessage(text, sender) {
-            const msg = document.createElement('div');
-            msg.className = `msg msg-${sender}`;
-            msg.textContent = text;
-            chatMessages.insertBefore(msg, typingIndicator);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        function showTyping() {
-            typingIndicator.style.display = 'flex';
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        function hideTyping() {
-            typingIndicator.style.display = 'none';
-        }
-
-        const responses = {
-            "pricing": "LeadFlow AI is simple and transparent: a one-time $500 setup fee includes your website, onboarding, and configuration. An optional $50/month subscription unlocks the full AI lead capture, follow-up automation, and dashboard. No hidden costs.",
-            "services": "We specialize in local service businesses like roofing, plumbing, HVAC, and landscaping. We handle lead capture, instant follow-up, and smart booking.",
-            "hours": "Our AI works 24/7/365! For our human team, we're available Mon-Fri 8am-6pm and Sat 9am-3pm.",
-            "booking": "You can book a demo by filling out our contact form, or I can take your details right here! What's your business name?",
-            "how": "We integrate with your website and social media to capture leads, qualify them using our custom AI, and book them directly into your calendar.",
-            "default": "That's a great question! LeadFlow AI is designed to ensure you 'Never Miss a Lead Again'. Would you like to know about our pricing or how we can help your specific business?"
-        };
-
-        function getResponse(text) {
-            const lowText = text.toLowerCase();
-            if (lowText.includes('pricing') || lowText.includes('cost')) return responses.pricing;
-            if (lowText.includes('service') || lowText.includes('plumber') || lowText.includes('roof')) return responses.services;
-            if (lowText.includes('hour') || lowText.includes('time')) return responses.hours;
-            if (lowText.includes('book') || lowText.includes('demo')) return responses.booking;
-            if (lowText.includes('how') || lowText.includes('work')) return responses.how;
-            return responses.default;
-        }
-
-        function handleUserMessage(text) {
-            if (!text.trim()) return;
-            addMessage(text, 'user');
-            chatInput.value = '';
-            
-            showTyping();
-            setTimeout(() => {
-                hideTyping();
-                addMessage(getResponse(text), 'ai');
-            }, 1000 + Math.random() * 1000);
-        }
-
-        sendChat.addEventListener('click', () => handleUserMessage(chatInput.value));
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleUserMessage(chatInput.value);
-        });
-
-        replyBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                handleUserMessage(btn.getAttribute('data-msg'));
-            });
-        });
-
-        // --- API Configuration ---
         const API_URL = 'https://leadflow-api.onrender.com';
 
-        async function captureLead(leadData) {
+        // --- Lead Capture ---
+        async function captureLead(ld) {
+            const notes = `[Sales Agent] Business: ${ld.business_type || 'N/A'} | Fields: ${collectedFields.join(', ')}`;
             try {
                 const res = await fetch(`${API_URL}/api/leads`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         client_id: 1,
-                        name: leadData.name || '',
-                        phone: leadData.phone || '',
-                        email: leadData.email || '',
-                        service_type: leadData.service_type || '',
-                        source: leadData.source || 'website-chat',
-                        notes: leadData.notes || ''
+                        name: ld.name || 'Website Visitor',
+                        phone: ld.phone || '',
+                        email: ld.email || '',
+                        service_type: ld.business_type || '',
+                        source: 'chatbot-sales-agent',
+                        notes: notes
                     })
                 });
                 const data = await res.json();
-                return data;
-            } catch (err) {
-                console.log('Lead capture deferred (API may not be live yet)');
-                return null;
-            }
+                if (data.success) {
+                    leadData._captured = true;
+                    return data.data.id;
+                }
+            } catch(e) { return null; }
         }
 
-        // Form Submission
+        // --- UI Helpers ---
+        chatToggle.addEventListener('click', () => {
+            chatWindow.classList.toggle('active');
+            const active = chatWindow.classList.contains('active');
+            chatIcon.style.display = active ? 'none' : 'block';
+            closeIcon.style.display = active ? 'block' : 'none';
+            if (active && conversationState === 'greeting') {
+                setTimeout(() => sendReply('I want to book more jobs'), 3000);
+            }
+        });
+
+        function addMessage(text, sender, html) {
+            const msg = document.createElement('div');
+            msg.className = `msg msg-${sender}`;
+            if (html) msg.innerHTML = text;
+            else msg.textContent = text;
+            chatMessages.insertBefore(msg, typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return msg;
+        }
+
+        function showTyping() { typingIndicator.style.display = 'flex'; chatMessages.scrollTop = chatMessages.scrollHeight; }
+        function hideTyping() { typingIndicator.style.display = 'none'; }
+
+        function showReplies(buttons) {
+            chatReplies.innerHTML = '';
+            buttons.forEach(b => {
+                const btn = document.createElement('button');
+                btn.className = 'reply-btn';
+                btn.textContent = b.label;
+                btn.onclick = () => sendReply(b.value);
+                chatReplies.appendChild(btn);
+            });
+        }
+
+        function clearReplies() { chatReplies.innerHTML = ''; }
+
+        function typeAndRespond(response, delay) {
+            showTyping();
+            setTimeout(() => {
+                hideTyping();
+                if (typeof response === 'string') {
+                    addMessage(response, 'ai');
+                } else if (response.text) {
+                    addMessage(response.text, 'ai', response.isHTML);
+                    if (response.replies) showReplies(response.replies);
+                    if (response.state) conversationState = response.state;
+                }
+            }, delay || 1000);
+        }
+
+        // --- MAIN SALES ENGINE ---
+        function sendReply(text) {
+            if (!text.trim()) return;
+            addMessage(text, 'user');
+            clearReplies();
+            chatInput.value = '';
+            processMessage(text);
+        }
+
+        function processMessage(text) {
+            const t = text.toLowerCase();
+
+            // ========== GREETING ==========
+            if (conversationState === 'greeting') {
+                typeAndRespond({
+                    text: `That's exactly what we do. 🔥<br><br>LeadFlow AI helps local service businesses like yours <strong>capture every lead, follow up instantly, and book more jobs automatically</strong> — all while you're out working.<br><br>Quick question: <strong>what type of service business do you run?</strong>`,
+                    isHTML: true,
+                    replies: [
+                        { label: '🔧 Roofing', value: 'Roofing' },
+                        { label: '🔩 Plumbing', value: 'Plumbing' },
+                        { label: '❄️ HVAC', value: 'HVAC' },
+                        { label: '🌿 Landscaping', value: 'Landscaping' },
+                        { label: '🛠️ Other', value: 'Other' }
+                    ],
+                    state: 'qualifying'
+                }, 1200);
+                return;
+            }
+
+            // ========== QUALIFYING (capture business type) ==========
+            if (conversationState === 'qualifying') {
+                const bizTypes = ['roofing','plumbing','hvac','landscaping','other','electrical','painting','cleaning','construction','handyman'];
+                const matched = bizTypes.find(bt => t.includes(bt));
+                if (matched) {
+                    leadData.business_type = matched.charAt(0).toUpperCase() + matched.slice(1);
+                } else {
+                    leadData.business_type = text;
+                }
+                collectedFields.push(`Business: ${leadData.business_type}`);
+
+                typeAndRespond({
+                    text: `Awesome — ${leadData.business_type}! 🎉<br><br>Here's the truth: most ${leadData.business_type.toLowerCase()} businesses <strong>lose 30-40% of their leads</strong> because they're too busy working to answer the phone or follow up.<br><br>With LeadFlow AI:<br>✅ <strong>Every missed call</strong> gets an instant SMS response<br>✅ <strong>Leads are qualified</strong> and scored hot/warm/cold<br>✅ <strong>Appointments booked</strong> directly into your calendar<br>✅ <strong>Follow-ups happen automatically</strong> until they convert<br><br>We get you set up for a <strong>one-time $500</strong> — that includes your website, onboarding, and configuration. Then an <strong>optional $50/month</strong> unlocks the full AI automation suite.<br><br>Can I ask — <strong>how many leads do you think you're missing each month?</strong>`,
+                    isHTML: true,
+                    replies: [
+                        { label: '📉 5-10', value: '5-10 a month' },
+                        { label: '📈 10-20', value: '10-20 a month' },
+                        { label: '🔥 20+', value: 'More than 20' },
+                        { label: '🤷 Not sure', value: 'Not sure' }
+                    ],
+                    state: 'collecting_info'
+                }, 1500);
+                return;
+            }
+
+            // ========== COLLECTING INFO ==========
+            if (conversationState === 'collecting_info' && !leadData.name) {
+                collectedFields.push(`Missing leads/mo: ${text}`);
+
+                typeAndRespond({
+                    text: `That's exactly why we built LeadFlow AI. Imagine never missing another call — every lead captured, every inquiry answered instantly, every job booked.<br><br>Our clients typically see <strong>3x more booked jobs</strong> within the first 30 days.<br><br>What's your <strong>name</strong> so I can show you what this looks like for your business?`,
+                    isHTML: true,
+                    state: 'collecting_info'
+                }, 1200);
+                return;
+            }
+
+            // ========== CAPTURE NAME ==========
+            if (conversationState === 'collecting_info' && !leadData.name && text.length > 1) {
+                leadData.name = text;
+                collectedFields.push(`Name: ${text}`);
+
+                typeAndRespond({
+                    text: `Great to meet you, ${leadData.name}! 👋<br><br>Last thing — what's the best <strong>phone number or email</strong> where we can reach you? I'll send over a personalized demo of how LeadFlow AI works for ${leadData.business_type.toLowerCase()} businesses.`,
+                    isHTML: true,
+                    state: 'closing'
+                }, 1000);
+                return;
+            }
+
+            // ========== CLOSING (capture phone/email) ==========
+            if (conversationState === 'closing' && !leadData.phone) {
+                // Check if it looks like a phone or email
+                if (t.includes('@') || t.includes('.')) {
+                    leadData.email = text;
+                } else {
+                    leadData.phone = text.replace(/[^0-9]/g, '');
+                }
+                collectedFields.push(`Contact: ${text}`);
+
+                if (leadData.phone && !leadData.email) {
+                    typeAndRespond({
+                        text: `Perfect! And what's the best <strong>email</strong> to send over your personalized info?`,
+                        isHTML: true,
+                        state: 'closing'
+                    }, 800);
+                    return;
+                }
+                if (leadData.email && !leadData.phone) {
+                    typeAndRespond({
+                        text: `Awesome! And your <strong>phone number</strong> so we can follow up ASAP?`,
+                        isHTML: true,
+                        state: 'closing'
+                    }, 800);
+                    return;
+                }
+
+                // Both collected!
+                proceedToBook();
+                return;
+            }
+
+            // If we have name but no phone/email yet, guide them
+            if (conversationState === 'closing' && !leadData.phone && !leadData.email) {
+                typeAndRespond({
+                    text: `What's the best <strong>phone number or email</strong> to reach you?`,
+                    isHTML: true,
+                    replies: [
+                        { label: '📱 Give my number', value: 'Call me' },
+                        { label: '📧 Give my email', value: 'Email me' }
+                    ]
+                }, 800);
+                return;
+            }
+
+            // ========== POST-BOOK ==========
+            if (conversationState === 'booked') {
+                typeAndRespond(`You're all set, ${leadData.name}! We'll be in touch shortly. 💪 In the meantime, check out our features above or give us a call if you want to chat sooner.`);
+                return;
+            }
+
+            // ========== FALLBACK ==========
+            if (t.includes('pricing') || t.includes('cost') || t.includes('price') || t.includes('how much')) {
+                typeAndRespond({
+                    text: `💰 <strong>Simple pricing:</strong><br>• <strong>One-time $500 setup</strong> — website, onboarding, configuration<br>• <strong>Optional $50/month</strong> — AI lead capture, follow-up automation, dashboard<br><br>No hidden fees. No long-term contracts. Most clients see ROI in under 2 weeks.`,
+                    isHTML: true,
+                    replies: [
+                        { label: '🎯 I want to get started', value: 'I want to get started' },
+                        { label: '⚙️ How does it work?', value: 'How does it work' }
+                    ]
+                }, 1000);
+                return;
+            }
+
+            if (t.includes('how') || t.includes('work') || t.includes('features')) {
+                typeAndRespond({
+                    text: `⚙️ <strong>Here's how LeadFlow AI works:</strong><br><br>1️⃣ <strong>Capture</strong> — We grab every lead from your site, missed calls, and social media<br>2️⃣ <strong>Qualify</strong> — AI scores them hot/warm/cold instantly<br>3️⃣ <strong>Respond</strong> — Auto-SMS replies in under 60 seconds<br>4️⃣ <strong>Book</strong> — Calendar sync + auto-confirmation<br>5️⃣ <strong>Nurture</strong> — Follow up until they convert<br><br>All while you're working.`,
+                    isHTML: true,
+                    replies: [
+                        { label: '💰 Tell me about pricing', value: 'What is the pricing?' },
+                        { label: '🎯 I want to get started', value: 'I want to get started' }
+                    ]
+                }, 1000);
+                return;
+            }
+
+            if (t.includes('book') || t.includes('demo') || t.includes('start') || t.includes('get started')) {
+                proceedToBook();
+                return;
+            }
+
+            if (t.includes('call') || t.includes('number') || t.includes('phone')) {
+                typeAndRespond({
+                    text: `📞 You can reach us at <strong>(555) 000-0000</strong> or give me your number and I'll have a specialist call you within the hour!`,
+                    isHTML: true,
+                    replies: [
+                        { label: '📱 Yes, call me', value: 'Call me please' }
+                    ]
+                }, 1000);
+                return;
+            }
+
+            // Default: push toward booking
+            typeAndRespond({
+                text: `Great question! The best way to see if LeadFlow AI is right for your ${leadData.business_type || 'service'} business is to let me capture your info and we'll show you exactly how it works.<br><br>What's your <strong>name</strong>?`,
+                isHTML: true,
+                state: 'collecting_info'
+            }, 1200);
+        }
+
+        function proceedToBook() {
+            conversationState = 'booked';
+            clearReplies();
+
+            // Capture the lead
+            captureLead(leadData);
+
+            typeAndRespond({
+                text: `🎉 <strong>You're in, ${leadData.name}!</strong><br><br>Here's what happens next:<br><br>1️⃣ We'll <strong>reach out</strong> to your ${leadData.phone ? 'phone' : 'email'} shortly<br>2️⃣ <strong>Set up your website</strong> with the full AI sales agent<br>3️⃣ <strong>Activate your automation</strong> — start capturing leads immediately<br><br><strong>One-time $500 setup</strong> includes everything. You'll be live within days.<br><br>Welcome to the future of never missing a lead! 🚀`,
+                isHTML: true,
+                replies: [
+                    { label: '🌟 Tell me more', value: 'How does it work?' },
+                    { label: '📋 Check features', value: 'What features do you have?' }
+                ]
+            }, 1500);
+        }
+
+        // --- Event Listeners ---
+        sendChat.addEventListener('click', () => sendReply(chatInput.value));
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendReply(chatInput.value);
+        });
+
+        replyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sendReply(btn.getAttribute('data-msg'));
+            });
+        });
+
+        // --- Form Submission ---
+        async function captureFormLead(formData) {
+            try {
+                const res = await fetch(`${API_URL}/api/leads`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: 1,
+                        name: formData.name || '',
+                        phone: formData.phone || '',
+                        email: formData.email || '',
+                        service_type: formData.service_type || '',
+                        source: 'website-form',
+                        notes: formData.notes || ''
+                    })
+                });
+                return await res.json();
+            } catch (e) { return null; }
+        }
+
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -1087,24 +1306,17 @@
             btn.textContent = 'Sending...';
             btn.disabled = true;
 
-            const formData = {
+            const fd = {
                 name: document.getElementById('name').value,
                 email: document.getElementById('email').value,
                 phone: document.getElementById('phone').value,
                 service_type: document.getElementById('service').value,
-                source: 'website-form',
                 notes: document.getElementById('message').value
             };
 
-            const result = await captureLead(formData);
-            
-            if (result && result.success) {
-                btn.textContent = '✓ Lead captured! We\'ll be in touch.';
-                btn.style.background = '#10B981';
-            } else {
-                btn.textContent = '✓ Thanks! We received your info.';
-                btn.style.background = '#10B981';
-            }
+            const result = await captureFormLead(fd);
+            btn.textContent = result?.success ? '✓ Lead captured! We\'ll be in touch.' : '✓ Thanks! We received your info.';
+            btn.style.background = '#10B981';
             e.target.reset();
             setTimeout(() => {
                 btn.textContent = originalText;
@@ -1112,26 +1324,6 @@
                 btn.disabled = false;
             }, 3000);
         });
-
-        // Capture lead from chatbot if they want to book
-        const originalHandleUserMessage = handleUserMessage;
-        handleUserMessage = function(text) {
-            if (!text.trim()) return;
-            originalHandleUserMessage(text);
-            
-            // If the user wants to book, capture as a lead
-            const lowText = text.toLowerCase();
-            if (lowText.includes('book') || lowText.includes('demo') || lowText.includes('quote') || lowText.includes('estimate')) {
-                captureLead({
-                    name: 'Website Visitor',
-                    phone: '',
-                    email: '',
-                    service_type: '',
-                    source: 'chatbot-intent',
-                    notes: `Chatbot inquiry: ${text}`
-                });
-            }
-        };
     </script>
 </body>
 </html>

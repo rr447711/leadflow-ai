@@ -9,7 +9,7 @@ const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['https://rr447711.github.io', 'http://localhost:8080', 'http://localhost:3000', 'https://leadflow-ai.com'],
+  origin: ['https://rr447711.github.io', 'http://localhost:8080', 'http://localhost:3000', 'https://leadflow-ai.com', 'https://leadflow-ai.onrender.com'],
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
 }));

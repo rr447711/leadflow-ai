@@ -8,7 +8,12 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['https://rr447711.github.io', 'http://localhost:8080', 'http://localhost:3000', 'https://leadflow-ai.com'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
+app.options('*', cors());
 app.use(express.json());
 app.use(morgan('dev'));
 

@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "LeadFlow AI - Never Miss a Lead Again",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

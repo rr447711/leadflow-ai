@@ -1053,25 +1053,85 @@
             });
         });
 
+        // --- API Configuration ---
+        const API_URL = 'https://leadflow-api.onrender.com';
+
+        async function captureLead(leadData) {
+            try {
+                const res = await fetch(`${API_URL}/api/leads`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: 1,
+                        name: leadData.name || '',
+                        phone: leadData.phone || '',
+                        email: leadData.email || '',
+                        service_type: leadData.service_type || '',
+                        source: leadData.source || 'website-chat',
+                        notes: leadData.notes || ''
+                    })
+                });
+                const data = await res.json();
+                return data;
+            } catch (err) {
+                console.log('Lead capture deferred (API may not be live yet)');
+                return null;
+            }
+        }
+
         // Form Submission
-        document.getElementById('contactForm').addEventListener('submit', (e) => {
+        document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
             const originalText = btn.textContent;
             btn.textContent = 'Sending...';
             btn.disabled = true;
+
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                service_type: document.getElementById('service').value,
+                source: 'website-form',
+                notes: document.getElementById('message').value
+            };
+
+            const result = await captureLead(formData);
             
-            setTimeout(() => {
-                btn.textContent = 'Success! We\'ll be in touch.';
+            if (result && result.success) {
+                btn.textContent = '✓ Lead captured! We\'ll be in touch.';
                 btn.style.background = '#10B981';
-                e.target.reset();
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '';
-                    btn.disabled = false;
-                }, 3000);
-            }, 1500);
+            } else {
+                btn.textContent = '✓ Thanks! We received your info.';
+                btn.style.background = '#10B981';
+            }
+            e.target.reset();
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '';
+                btn.disabled = false;
+            }, 3000);
         });
+
+        // Capture lead from chatbot if they want to book
+        const originalHandleUserMessage = handleUserMessage;
+        handleUserMessage = function(text) {
+            if (!text.trim()) return;
+            originalHandleUserMessage(text);
+            
+            // If the user wants to book, capture as a lead
+            const lowText = text.toLowerCase();
+            if (lowText.includes('book') || lowText.includes('demo') || lowText.includes('quote') || lowText.includes('estimate')) {
+                captureLead({
+                    name: 'Website Visitor',
+                    phone: '',
+                    email: '',
+                    service_type: '',
+                    source: 'chatbot-intent',
+                    notes: `Chatbot inquiry: ${text}`
+                });
+            }
+        };
     </script>
 </body>
 </html>

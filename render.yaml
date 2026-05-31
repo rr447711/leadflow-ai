@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: leadflow-ai-api
+    env: node
+    region: oregon
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    healthCheckPath: /api/stats
+    plan: free
+    envVars:
+      - key: PORT
+        value: 10000
